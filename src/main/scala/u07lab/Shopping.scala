@@ -1,7 +1,5 @@
 package u07lab
 
-import java.util.Currency
-
 case class Product(name: String)
 case class Price(value: Double)
 case class Item(product: Product, details: ItemDetails)
@@ -10,6 +8,8 @@ case class ItemDetails(qty: Int, price: Price)
 trait Cart {
   def add(item: Item)
   def content: Set[Item]
+  def size: Int
+  def totalCost: Double
 }
 
 class BasicCart(private var items: Map[Product, ItemDetails] = Map()) extends Cart {
@@ -18,6 +18,8 @@ class BasicCart(private var items: Map[Product, ItemDetails] = Map()) extends Ca
       i.copy(qty = i.qty + item.details.qty,
       price = Price(i.price.value+item.details.price.value))).getOrElse(item.details))
   }
+  def content: Set[Item] = items.map { case (prod,details) => Item(prod,details) } toSet
+  def size = items.size
   def totalCost: Double = items.values.foldRight(0.0)(_.price.value+_)
 }
 
@@ -62,6 +64,8 @@ class Shopping(private val warehouse: Warehouse,
                private var cart: Cart,
                private val logger: Logger) {
   def pick(p: Product, qty: Int): Cart = {
+    assert(qty>0) // precondition
+
     logger.log(s"Trying to pick $qty pieces of $p.")
     val (_, howMany) = warehouse.get(p, qty)
     if(howMany>0) {
@@ -69,8 +73,8 @@ class Shopping(private val warehouse: Warehouse,
       val price = catalog.priceFor(p, howMany)
       logger.log(s"$howMany pieces of $p collectively cost $price.")
       val item = Item(p, ItemDetails(howMany, price))
-      cart = cart.add(item)
-      logger.log(s"Updated cart: now it contains ${cart.items.size} items for total ${cart.totalCost}")
+      cart.add(item)
+      logger.log(s"Updated cart: now it contains ${cart.size} items for total ${cart.totalCost}")
     } else{
       logger.log("There are no pieces of the requested product in the warehouse.")
     }
@@ -87,9 +91,11 @@ object TryShopping extends App {
     p1 -> Price(78),
     p2 -> Price(34)
   ))
-  val cart = Cart()
+  val cart = new BasicCart()
   val shopping = new Shopping(warehouse, catalog, cart, new BasicLogger(">> "))
   shopping.pick(p1,1)
-  shopping.pick(p2,1)
   shopping.pick(p2,2)
+  shopping.pick(p1,2)
+  println(cart.content)
+  println("Total cost: " + cart.totalCost)
 }
