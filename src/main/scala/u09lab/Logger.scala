@@ -1,4 +1,4 @@
-package u07lab
+package u09lab
 
 trait Logger {
   def log(msg: String)
